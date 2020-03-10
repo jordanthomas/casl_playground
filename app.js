@@ -4,7 +4,7 @@ const path = require("path");
 const cookieParser = require("cookie-parser");
 const logger = require("morgan");
 const passport = require("passport");
-const { Strategy } = require("passport-jwt");
+const { Strategy: JwtStrategy, ExtractJwt } = require("passport-jwt");
 const jwt = require("jsonwebtoken");
 const { AbilityBuilder, Ability } = require("@casl/ability");
 
@@ -25,18 +25,10 @@ app.use(cookieParser());
 app.use(express.static(path.join(__dirname, "public")));
 
 const secret = "casl.homee.playground";
-let BLANK_JWT;
 
 app.set("jwt.secret", secret);
-app.set("jwt.issuer", "homee.com");
+app.set("jwt.issuer", "api.homee.com");
 app.set("jwt.audience", "homee.com");
-
-function generateBlankJwt(secret, options) {
-  return jwt.sign({ anonymous: true }, secret, {
-    expiresIn: "365d",
-    ...options
-  });
-}
 
 // return fake user
 function findUser(payload, done) {
@@ -50,49 +42,23 @@ function findUser(payload, done) {
   }
 }
 
-function createAbilities(req, res, next) {
-  const { rules, can } = AbilityBuilder.extract();
-
-  can("create", "Job");
-
-  req.ability = new Ability(rules);
-  next();
-}
-
-const options = {
+const passportOptions = {
   issuer: app.get("jwt.issuer"),
   audience: app.get("jwt.audience")
 };
 
-BLANK_JWT =
-  BLANK_JWT ||
-  generateBlankJwt(app.get("jwt.secret"), {
-    issuer: app.get("jwt.issuer"),
-    audience: app.get("jwt.audience")
-  });
-
 passport.use(
-  new Strategy(
+  new JwtStrategy(
     {
-      ...options,
+      ...passportOptions,
       secretOrKey: app.get("jwt.secret"),
-      jwtFromRequest: req => {
-        if (
-          req.headers.authorization &&
-          req.headers.authorization.split(" ")[0] === "Bearer"
-        ) {
-          return req.headers.authorization.split(" ")[1];
-        } else {
-          return BLANK_JWT;
-        }
-      }
+      jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken()
     },
     findUser
   )
 );
 
 app.use(passport.initialize());
-app.use(passport.authenticate("jwt", { session: false }), createAbilities);
 
 app.use("/", indexRouter);
 app.use("/api", apiRouter);

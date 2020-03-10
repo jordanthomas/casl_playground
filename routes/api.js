@@ -1,11 +1,22 @@
 const express = require("express");
 const router = express.Router();
 const jwt = require("jsonwebtoken");
+const authenticate = require("../middlewares/authenticate");
+const { AbilityBuilder, Ability, ForbiddenError } = require("@casl/ability");
 
 const userModel = require("../models/user");
 
-router.post("/jobs", function(req, res, next) {
-  req.ability.throwUnlessCan("create", "Job");
+function createAbilities(req, res, next) {
+  const { rules, can } = AbilityBuilder.extract();
+
+  can("create", "Job");
+
+  req.ability = new Ability(rules);
+  next();
+}
+
+router.post("/jobs", authenticate, function(req, res, next) {
+  ForbiddenError.from(req.ability).throwUnlessCan("create", "Job");
 
   res.send({ message: "Job created!" });
 });
