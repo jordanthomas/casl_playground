@@ -24,12 +24,12 @@ app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, "public")));
 
-const secret = "!_^secret.casl.authorization?!";
+const secret = "casl.homee.playground";
 let BLANK_JWT;
 
 app.set("jwt.secret", secret);
-app.set("jwt.issuer", "CASL.Express");
-app.set("jwt.audience", "casl.io");
+app.set("jwt.issuer", "homee.com");
+app.set("jwt.audience", "homee.com");
 
 function generateBlankJwt(secret, options) {
   return jwt.sign({ anonymous: true }, secret, {
@@ -76,7 +76,16 @@ passport.use(
     {
       ...options,
       secretOrKey: app.get("jwt.secret"),
-      jwtFromRequest: req => req.headers.authorization || BLANK_JWT
+      jwtFromRequest: req => {
+        if (
+          req.headers.authorization &&
+          req.headers.authorization.split(" ")[0] === "Bearer"
+        ) {
+          return req.headers.authorization.split(" ")[1];
+        } else {
+          return BLANK_JWT;
+        }
+      }
     },
     findUser
   )
